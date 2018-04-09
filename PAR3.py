@@ -2,7 +2,6 @@
 
 
 import time, sys, random, math, _thread
-from graphics import *
 
 
 class PARtraveling:
@@ -11,42 +10,41 @@ class PARtraveling:
         self.x = [] #X coordinates of random cities
         self.y = [] #Y coordinates of random cities
         self.D = [] #Distance matrix
-        self.temp = 1 #Initial temperature
-        self.tempdecratio=0.999 #lambda
+        self.tempdecratio=0.995
         self.result = []
         self.average = []
         self.n = 0
         self.towns = []
-        self.win = GraphWin('TSM - Simulated annealing best solution', 500, 500) #New graphic windows
-        self.win2 = GraphWin('TSM - Monte Carlo best solution', 500, 500) #New graphic windows
+        self.kmax = 10000
+
         try:
             self.size = sys.argv[1] #parsing arguments
             self.par = sys.argv[2]
-            self.kmax = int(sys.argv[3])
+            self.temp = int(sys.argv[3]) #Initial temperature
         except:
             print("Problem parsing arguments!")
             self.printhelp()
             sys.exit()
 
     def run_main(self):
-        try:
-            self.run_create(int(self.size))
-            print("Starting ", self.par, " threads for calculating using simulated annealing.")
-            for i in range(0,int(self.par)):
-                _thread.start_new_thread(self.run_annealing, (int(self.size),))
-            self.run_resultcatcher(self.win)
-            #Reset results for next test
-            self.result = []
-            self.average = []
-            self.n = 0
-            self.towns = []
-            for i in range(0,int(self.par)):
-                _thread.start_new_thread(self.run_montecarlo, (int(self.size),))
-            self.run_resultcatcher(self.win2)
-            pause=input("Press ENTER to quit.")
-            sys.exit()
-        except:
-            print("Quiting")
+       # try:
+        self.run_create(int(self.size))
+        print("Starting ", self.par, " threads for calculating using simulated annealing.")
+        for i in range(1,int(self.par)+1):
+            _thread.start_new_thread(self.run_annealing, (int(self.size),self.temp*(i*i),))
+        self.run_resultcatcher()
+        #Reset results for next test
+        self.result = []
+        self.average = []
+        self.n = 0
+        self.towns = []
+        for i in range(1,int(self.par)+1):
+            _thread.start_new_thread(self.run_montecarlo, (int(self.size),self.temp*i,))
+        self.run_resultcatcher()
+        pause=input("Press ENTER to quit.")
+        sys.exit()
+        #except:
+        #    print("Quiting")
 
     def run_create(self,size): #This function creates the intial problem with random cities
         print("Creating random ",size," cities")
@@ -63,26 +61,9 @@ class PARtraveling:
             for j in range(0, size,1):
                 self.D[i][j] = math.sqrt(pow(self.x[i]-self.x[j],2)+pow(self.y[i]-self.y[j],2))
         print("Done.")
-        self.draw_canvas()
 
-    def draw_canvas(self):
-        for i in range(int(self.size)):
-            gtown = Circle(Point(self.x[i]*50,self.y[i]*50), 8) # set center and radius
-            gtown.setFill("blue")
-            gtown.draw(self.win)
-            message = Text(Point(self.x[i]*50,self.y[i]*50), str(i))
-            message.setSize(10)
-            message.setTextColor("white")
-            message.draw(self.win)
-            gtown2 = Circle(Point(self.x[i]*50,self.y[i]*50), 8) # set center and radius
-            gtown2.setFill("blue")
-            gtown2.draw(self.win2)
-            message2 = Text(Point(self.x[i]*50,self.y[i]*50), str(i))
-            message2.setSize(10)
-            message2.setTextColor("white")
-            message2.draw(self.win2)
 
-    def run_resultcatcher(self,win):
+    def run_resultcatcher(self):
         size=0
         while True:
             if len(self.result)>size:
@@ -105,7 +86,7 @@ class PARtraveling:
                 self.average[self.n][1]=self.average[self.n][1]/size
                 self.average[self.n][2]=self.average[self.n][2]/size
                 self.average[self.n][3]=self.average[self.n][3]/size
-                print(self.average[self.n])
+                #print(self.average[self.n])
                 self.n=self.n+1
                 if size == 1:
                     best_route = self.result[0][1]
@@ -121,22 +102,16 @@ class PARtraveling:
                     if self.towns[i][0]==best_thread:
                         print(self.towns[i][1])
                         key=i
-                for i in range(0,int(self.size)-1,1):
-                    line = Line(Point(self.x[self.towns[key][1][i]]*50, self.y[self.towns[key][1][i]]*50), Point(self.x[self.towns[key][1][i+1]]*50, self.y[self.towns[key][1][i+1]]*50)) # set endpoints
-                    line.setWidth(2)
-                    line.draw(win)
-                message = Text(Point(win.getWidth()/2, 20), 'Total travel distance:'+str(self.result[key][1]))
-                message.draw(win)
                 break
 
-    def run_annealing(self,size): 
+    def run_annealing(self,size,temp): 
         k=0
+        temp0=temp
         id=_thread.get_ident()
         file = open("report_SA"+str(int(id/3))+"_KMAX_"+str(self.kmax)+".csv","w") #uses the thread id for creating unique filenames
         start_time=time.time()*1000
         town=[]
         interactions=0
-        temp=self.temp
         tcost=0
         for i in range(size):
             town.append(i)
@@ -162,19 +137,19 @@ class PARtraveling:
             delta=tnewcost-tcost
             if delta < 0 or math.exp(-delta/temp) >= random.random():
                 tcost = tnewcost
+                temp=temp*self.tempdecratio
                 k=0
-            temp=temp*self.tempdecratio
             interactions=interactions+1
             file.write(str(interactions)+" "+str(tcost)+" "+str(temp)+"\n")
             k=k+1
         end_time=time.time()*1000
         costreduction=((firstcost-tcost)/firstcost)*100
-        self.result.append([id,tcost,costreduction,int(end_time-start_time),interactions,"SA"])
+        self.result.append([temp0,tcost,costreduction,int(end_time-start_time),interactions,"SA"])
         print("Thread finished")
-        self.towns.append([id,town])
+        self.towns.append([temp0,town])
         file.close()
 
-    def run_montecarlo(self,size): 
+    def run_montecarlo(self,size,temp): 
         k=0
         id=_thread.get_ident()
         file = open("report_MC"+str(int(id/3))+"_KMAX_"+str(self.kmax)+".csv","w")  #uses the thread id for creating unique filenames
@@ -212,9 +187,9 @@ class PARtraveling:
             k=k+1
         end_time=time.time()*1000
         costreduction=((firstcost-tcost)/firstcost)*100
-        self.result.append([id,tcost,costreduction,int(end_time-start_time),interactions,"MC"])
+        self.result.append([self.kmax,tcost,costreduction,int(end_time-start_time),interactions,"MC"])
         print("Thread finished")
-        self.towns.append([id,town])
+        self.towns.append([self.kmax,town])
         file.close()
 
     def printhelp(self):
@@ -223,10 +198,7 @@ class PARtraveling:
         print("Bruno Chianca Ferreira PG338778")
         print("-----------------------------------------------------")
         print("Running:")
-        print("./PARtraveling [n] [z] [k]")
-        print("n - number of cities")
-        print("z - number of threads")
-        print("k - maximum number of unchanged loops")
+        print("./PARtraveling [number of cities] [number of threads]")
         print("-----------------------------------------------------")
         print()
 
