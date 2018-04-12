@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 
-
 import time, sys, random, math, _thread
-from graphics import *
-
 
 class PARtraveling:
 
@@ -17,8 +14,6 @@ class PARtraveling:
         self.average = []
         self.n = 0
         self.paths = []
-        self.win = GraphWin('TSM - Simulated annealing best solution', 500, 500) #New graphic windows
-        self.win2 = GraphWin('TSM - Monte Carlo best solution', 500, 500) #New graphic windows
         try:
             self.size = sys.argv[1] #parsing arguments
             self.par = sys.argv[2]
@@ -36,7 +31,7 @@ class PARtraveling:
         sa_start_time=time.time()*1000 #Time in miliseconds
         for i in range(0,int(self.par)):
             _thread.start_new_thread(self.run_annealing, (int(self.size),firstpath,))
-        bestRouteSA = self.run_resultparser(self.win)
+        bestRouteSA = self.run_resultparser()
         sa_time = time.time()*1000 #Time in miliseconds
         #Reset results for next test
         self.result = []
@@ -46,7 +41,7 @@ class PARtraveling:
         mc_start_time=time.time()*1000 #Time in miliseconds
         for i in range(0,int(self.par)):
             _thread.start_new_thread(self.run_montecarlo, (int(self.size),firstpath,))
-        bestRouteMC = self.run_resultparser(self.win2)
+        bestRouteMC = self.run_resultparser()
         mc_time = time.time()*1000 #Time in miliseconds
         print("Best SA route=",bestRouteSA," in ",sa_time-sa_start_time," ms ")
         print("Best MC route=",bestRouteMC," in ",mc_time-mc_start_time," ms ")
@@ -70,7 +65,6 @@ class PARtraveling:
             for j in range(0, size,1):
                 self.D[i][j] = math.sqrt(pow(self.x[i]-self.x[j],2)+pow(self.y[i]-self.y[j],2))
         print("Done.")
-        self.draw_canvas()
         path=[]
         for i in range(size):
             path.append(i)
@@ -94,7 +88,7 @@ class PARtraveling:
             message2.setTextColor("white")
             message2.draw(self.win2)
 
-    def run_resultparser(self,win):
+    def run_resultparser(self):
         size=0
         key=0
         while True:
@@ -128,12 +122,6 @@ class PARtraveling:
                             key=i
                             best_route=self.result[i][1]
                             best_thread=self.result[i][0]
-                for i in range(0,int(self.size)-1,1):
-                    line = Line(Point(self.x[self.paths[key][1][i]]*50, self.y[self.paths[key][1][i]]*50), Point(self.x[self.paths[key][1][i+1]]*50, self.y[self.paths[key][1][i+1]]*50)) # set endpoints
-                    line.setWidth(2)
-                    line.draw(win)
-                message = Text(Point(win.getWidth()/2, 20), 'Total travel distance:'+str(self.result[key][1]))
-                message.draw(win)
                 return best_route
 
     def run_annealing(self,size,originalpath): 
